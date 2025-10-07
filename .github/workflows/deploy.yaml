@@ -29,6 +29,7 @@ jobs:
           aws cloudformation deploy \
             --template-file infrastructure/template.yaml \
             --stack-name visitor-counter-stack \
+            --s3-bucket cf-artifacts-jv-20251007 \
             --capabilities CAPABILITY_IAM \
             --no-fail-on-empty-changeset
 
