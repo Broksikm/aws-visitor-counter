@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: --- Infrastructure for the Visitor Counter application ---
+
+Resources:
+  ## 1. DynamoDB Table
+  # Tabulka pro uložení jediné položky - našeho počítadla.
+  VisitorCounterTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: visitor-counter-table
+      AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S" # S = String
+      KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH" # HASH = Partition key
+      BillingMode: PAY_PER_REQUEST # Serverless model, platí se jen za reálné použití
+
+  ## 2. IAM Role for Lambda
+  # Oprávnění, která dáváme naší Lambda funkci.
+  # Potřebuje přistupovat k DynamoDB a zapisovat logy do CloudWatch.
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: LambdaDynamoDBPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:GetItem'
+                Resource: !GetAtt VisitorCounterTable.Arn
+              - Effect: Allow # Oprávnění pro logování
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+
+  ## 3. Lambda Function
+  # Samotná funkce, která obsahuje naši byznys logiku (v Pythonu).
+  VisitorCounterFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: visitor-counter-function
+      Handler: app.lambda_handler # Soubor app.py, funkce lambda_handler
+      Runtime: python3.11
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref VisitorCounterTable
+      Code: src/lambda_function/
+
+  ## 4. API Gateway (HTTP API)
+  # Veřejný vstupní bod (endpoint), na který bude volat náš frontend.
+  ApiGatewayApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: visitor-counter-api
+      ProtocolType: HTTP
+      CorsConfiguration: # Důležité pro povolení komunikace z webové stránky
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - POST
+        AllowHeaders:
+          - Content-Type
+
+  ## 5. Propojení API Gateway a Lambda
+  # Nyní musíme definovat cestu (route) a integraci (integration),
+  # aby API Gateway věděla, že požadavky na cestu /count má posílat naší Lambdě.
+  ApiGatewayIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ApiGatewayApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt VisitorCounterFunction.Arn
+      PayloadFormatVersion: '2.0'
+
+  ApiGatewayRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiGatewayApi
+      RouteKey: 'POST /count' # Metoda POST na cestu /count
+      Target: !Sub 'integrations/${ApiGatewayIntegration}'
+
+  ## 6. Oprávnění pro API Gateway
+  # Musíme explicitně povolit API Gateway, aby mohla spouštět naši Lambda funkci.
+  ApiGatewayLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref VisitorCounterFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayApi}/*/*"
+
+    ## 7. S3 Bucket for Frontend
+  # Bucket pro hostování naší statické webové stránky (HTML, JS).
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+
+  ## 8. S3 Bucket Policy
+  # Oprávnění, které bucketu povolí veřejné čtení obsahu.
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${FrontendBucket}/*'
+
+Outputs:
+  ## Výstupy, které se zobrazí po nasazení.
+  # Zde si necháme vypsat URL našeho nového API.
+  ApiEndpointUrl:
+    Description: "The URL of the API Gateway endpoint"
+    Value: !GetAtt ApiGatewayApi.ApiEndpoint
+  FrontendBucketName:
+    Description: "Name of the S3 bucket for the frontend"
+    Value: !Ref FrontendBucket
+  WebsiteURL:
+    Description: "URL of the hosted website"
+    Value: !GetAtt FrontendBucket.WebsiteURL

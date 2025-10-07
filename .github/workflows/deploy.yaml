@@ -1,0 +1,44 @@
+name: Deploy Visitor Counter to AWS
+
+# Spustí se při push do větve 'main' a také umožňuje manuální spuštění
+on:
+  workflow_dispatch:
+
+# Oprávnění potřebná pro OIDC komunikaci s AWS
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # ZDE VLOŽ ARN ROLE, KTEROU JSI VYTVOŘIL V KROKU 2
+          role-to-assume: arn:aws:iam::687035307786:role/GitHubActions-aws-visitor-counter-Role
+          # ZDE VLOŽ REGION, KTERÝ POUŽÍVÁŠ
+          aws-region: eu-central-1
+
+      - name: Deploy Backend Stack to AWS CloudFormation
+        run: |
+          aws cloudformation deploy \
+            --template-file infrastructure/template.yaml \
+            --stack-name visitor-counter-stack \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Get CloudFormation Outputs
+        id: outputs
+        run: |
+          # Získáme název S3 bucketu z nasazené infrastruktury
+          BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name visitor-counter-stack --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" --output text)
+          echo "bucket_name=$BUCKET_NAME" >> $GITHUB_OUTPUT
+
+      - name: Sync Frontend to S3
+        run: |
+          aws s3 sync ./frontend s3://${{ steps.outputs.outputs.bucket_name }}
