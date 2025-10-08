@@ -24,12 +24,18 @@ jobs:
           # ZDE VLOŽ REGION, KTERÝ POUŽÍVÁŠ
           aws-region: eu-central-1
 
-      - name: Deploy Backend Stack to AWS CloudFormation
+      - name: Package CloudFormation Template
+        run: |
+          aws cloudformation package \
+            --template-file infrastructure/template.yaml \
+            --s3-bucket cf-artifacts-jv-20251007 \
+            --output-template-file packaged.yaml
+
+      - name: Deploy CloudFormation Stack
         run: |
           aws cloudformation deploy \
-            --template-file infrastructure/template.yaml \
+            --template-file packaged.yaml \
             --stack-name visitor-counter-stack \
-            --s3-bucket cf-artifacts-jv-20251007 \
             --capabilities CAPABILITY_IAM \
             --no-fail-on-empty-changeset
 
