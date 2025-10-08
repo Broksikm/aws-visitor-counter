@@ -60,7 +60,7 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref VisitorCounterTable
-      Code: src/lambda_function/
+      Code: ../src/lambda_function/
 
   ## 4. API Gateway (HTTP API)
   # Veřejný vstupní bod (endpoint), na který bude volat náš frontend.
