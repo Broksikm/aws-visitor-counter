@@ -1,5 +1,5 @@
 // DŮLEŽITÉ: Tuto URL adresu budeme muset vyplnit po prvním nasazení!
-const apiUrl = 'ZDE_BUDE_URL_Z_CLOUDFORMATION_VYSTUPU';
+const apiUrl = 'https://g5rfe5rxci.execute-api.eu-central-1.amazonaws.com';
 
 document.addEventListener('DOMContentLoaded', () => {
     const countElement = document.getElementById('visitor-count');
