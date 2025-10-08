@@ -95,6 +95,15 @@ Resources:
       RouteKey: 'POST /count' # Metoda POST na cestu /count
       Target: !Sub 'integrations/${ApiGatewayIntegration}'
 
+  # Explicitně definujeme "stage", abychom zajistili, že se naše trasy
+  # vždy správně nasadí a budou veřejně dostupné.
+  ApiGatewayStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ApiGatewayApi
+      StageName: $default
+      AutoDeploy: true
+
   ## 6. Oprávnění pro API Gateway
   # Musíme explicitně povolit API Gateway, aby mohla spouštět naši Lambda funkci.
   ApiGatewayLambdaPermission:
