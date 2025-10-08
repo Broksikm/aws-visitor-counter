@@ -110,10 +110,14 @@ Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      AccessControl: PublicRead
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
 
   ## 8. S3 Bucket Policy
   # Oprávnění, které bucketu povolí veřejné čtení obsahu.
