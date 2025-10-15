@@ -3,7 +3,13 @@ name: Deploy Visitor Counter to AWS
 # Spustí se při push do větve 'main' a také umožňuje manuální spuštění
 on:
   workflow_dispatch:
-
+    inputs:
+      deployment_tag:
+        description: 'Tag, ze kterého se má nasazení spustit'
+        required: true
+        default: 'v1.0.0'  # <--- ZDE NASTAVTE VÝCHOZÍ TAG
+        type: string
+        
 # Oprávnění potřebná pro OIDC komunikaci s AWS
 permissions:
   id-token: write
