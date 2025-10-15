@@ -4,11 +4,15 @@ name: Deploy Visitor Counter to AWS
 on:
   workflow_dispatch:
     inputs:
-      deployment_tag:
-        description: 'Tag, ze kterého se má nasazení spustit'
+      target_branch:
+        description: 'Větev, na které se má workflow spustit'
         required: true
-        default: 'v1.0.0'  # <--- ZDE NASTAVTE VÝCHOZÍ TAG
-        type: string
+        default: 'develop'  # <--- ZDE ZMĚNÍTE VÝCHOZÍ VĚTEV
+        type: choice
+        options:
+          - main
+          - develop
+          - staging
         
 # Oprávnění potřebná pro OIDC komunikaci s AWS
 permissions:
